@@ -1,0 +1,14 @@
+Data
+Ignore
+tmsi_python_interface
+Annotation_Tools-main
+__pycache__
+SAGA Interface for Matlab (94-2303-0200-0-7)
+test.nii.gz
+fwd_dipole.npy
+.DS_Store
+EMG_fwdmodel.ipynb
+EMG_inverse.ipynb
+IntermediaryHackFwd.ipynb
+TissueSegmentation.ipynb
+tmsi_checkdata.ipynb
