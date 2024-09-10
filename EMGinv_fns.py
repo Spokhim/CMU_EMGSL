@@ -507,3 +507,239 @@ def find_closest_rows(pos, dpos):
     
     return np.array(closest_indices)
 
+def best_dipole_infwd(fwd, data):
+    """ Find the best dipole position in the forward model that would match the data when scaled.  Obtains the strengths of each orientation in said location.
+    
+    Parameters:
+    - fwd (array): Forward model matrix (n_sensors x n_dipoles*3).
+    - data (array): Recorded data (n_sensors x n_timepoints).
+
+    Returns:
+    - best_index (array): Index of the best dipole in the forward model for each timepoint.
+    - best_weights (array): Weights of the best dipole in the forward model for each timepoint.
+    - save_arr (array): Array containing the residuals and weights for each dipole (and its three orientations) in the forward model.
+    """
+
+    # Reshape fwd - so that the dipole orientation is the third dimension
+    fwd = fwd.reshape((fwd.shape[0],-1,3), order='C')
+
+    # Sanity check that the reshaping is correct
+    # arr = np.arange(12).reshape(2,6)
+    # print(arr)
+    # arr.reshape(2,-1,3, order='C')[:,0,:]
+    # print(arr)
+
+    # Initialise array based on shape of the input data, whether it is 1D (n_electrodes) or 2D (n_electrodes x n_timepoints)
+    if len(data.shape) == 1:
+        save_arr_dim2 = 1
+    else:
+        save_arr_dim2 = data.shape[1]
+    save_arr = np.zeros((fwd.shape[1], 4, save_arr_dim2))
+
+    # For each dipole, solve for the weights that would match the data with np.linalg.listsq (Xw = y)
+    for i in np.arange(fwd.shape[1]):
+        w, residuals, _, _ = np.linalg.lstsq(fwd[:,i,:], data, rcond=None) 
+        # Save the weights and residuals
+        try:
+            save_arr[i,0,:] = residuals
+            save_arr[i,1:,:] = w.reshape((3,save_arr_dim2))
+        except:
+            save_arr[i,0,:] = np.nan
+            save_arr[i,1:,:] = np.nan
+
+    best_index = np.nanargmin(save_arr[:,0,:], axis=0)
+    best_weights = save_arr[best_index,1:,:].diagonal(axis1=0, axis2=2)
+
+    return best_index, best_weights, save_arr
+
+###########################################################################################################################################
+
+# Optimisers tried which don't work well:
+
+# Equivalent Current Dipole (ECD) fitting using analytical function instead of pre-generated leadfield matrix
+# Reason for not using: Slow, unable to fit global minima in a sensible time frame, doesn't converge well
+def ECD_fit_dipoles_analytical(data, electrode_pos, n_dipoles=1, initial_guess=None, local=True):
+    """
+    Fit multiple dipoles to the data using the ECD method and analytical dipole equation.
+
+    Parameters:
+    - data: Recorded data (n_sensors x timepoints).
+    - electrode_pos: Position of all the electrodes (n_electrodes x 3).
+    - n_dipoles: Number of dipoles to fit.  Technically we are fitting 3*n_dipoles dipoles due to 3 orientations per position.
+    - initial_guess: Initial guess for the dipole parameters (optional).
+    - local: (bool): If True, perform a local optimization. If False, perform a global optimization.
+    
+    Returns:
+    - Optimal dipole parameters (positions, orientations, strengths).
+    """
+
+    # Define the bounds for the dipole positions
+    bound_max = electrode_pos.max(axis=0)
+    bound_min = electrode_pos.min(axis=0)
+    bounds = [(bound_min[0], bound_max[0]), (bound_min[1], bound_max[1]), (bound_min[2], bound_max[2]), 
+            (None, None), (None, None), (None, None)] * n_dipoles
+
+    # Define the initial conditions
+    if initial_guess is None:
+        # Generate a random initial guess for the dipole parameters
+        # Place in middle of source space if only 1 dipole
+        if n_dipoles == 1:
+            middle_pos = np.mean(electrode_pos, axis=0)
+            initial_guess = np.ones(n_dipoles * 6)
+            initial_guess[:3] = middle_pos
+        # Otherwise, randomly place the dipoles within the source space
+        else:
+            initial_guess = np.random.rand(n_dipoles * 6)  # 3 for position, 3 for strength of each orientation
+            # Scale the random values to the range of the source space
+            index = np.arange(len(initial_guess))%6
+            initial_guess[index==0] = initial_guess[index==0] * bound_max[0]
+            initial_guess[index==1] = initial_guess[index==1] * bound_max[1]
+            initial_guess[index==2] = initial_guess[index==2] * bound_max[2]
+
+    # Nested objective function for the optimization
+    def objective_function(d_params, electrode_pos, data):
+        """
+        Objective function to minimize: the difference between measured data and the forward model prediction.
+
+        Parameters:
+        - d_params: Dipole parameters (n_dipoles*6). Each successive 6 indices contain the position (x, y, z) of the nth dipole and strength of each of the 3 dipole orientations.
+        - electrode_pos: Position of all the electrodes (n_electrodes x 3).
+        - data: Recorded data (n_sensors x timepoints).
+
+        Returns:
+        - Error (L2-norm) between predicted data and observed data.
+        """
+        # Extract some useful variables
+        n_dipoles = len(d_params) // 6
+        # Reshape
+        d_params = d_params.reshape((n_dipoles, 6), order='C')
+        d_pos = d_params[:, :3]
+        d_strength = d_params[:, 3:]
+        d_strength = d_strength.flatten(order='C')
+
+        # Calculate the leadfield matrix for the given dipole parameters
+        d_fwd = fwd_generator(dipole_potential, d_pos, electrode_pos)
+
+        # Compute the predicted data
+        predicted_data =  d_fwd @ d_strength.T
+        
+        # Calculate the L2 norm of the error
+        error = np.linalg.norm(predicted_data - data)
+        return error
+
+    # Use an optimization routine to minimize the objective function
+    if local:
+        # Perform a local optimization
+        result = minimize(objective_function, initial_guess, args=(electrode_pos, data), bounds=bounds,)
+    else:
+        # Perform a global optimization
+        result = scipy.optimize.basinhopping(objective_function, initial_guess, minimizer_kwargs={'args': (electrode_pos, data), 'bounds': bounds})
+
+    print(result)
+    d_x = result.x.reshape((n_dipoles, 6), order='C')
+    d_pos = d_x[:, :3]
+    d_strength = d_x[:, 3:]
+    
+    # Return the optimized dipole parameters
+    return d_pos, d_strength
+
+# Equivalent Current Dipole (ECD) fitting - for offline processing 
+# Reason for not using: Does not converge well for global.  Local converges okay for one dipole, but not multiple, and depends on initial guess.
+# Additionally, it's a bit silly since we are not taking advantage of the fwd, and the discretised source space (which would need a different package)
+def ECD_fit_dipoles(data, fwd, pos, n_dipoles=1, initial_guess=None, local=True):
+    """
+    Fit multiple dipoles to the data using the ECD method.
+
+    Parameters:
+    - data (array): Recorded data (n_sensors x timepoints).
+    - fwd (array): Leadfield matrix (n_sensors x n_voxels*3).
+    - pos (array): Position of all the source space voxels (n_voxels x 3).
+    - n_dipoles (int): Number of dipoles to fit.  Technically we are fitting 3*n_dipoles dipoles due to 3 orientations per position.
+    - initial_guess (array): Initial guess for the dipole parameters (optional).  You should use one for a local optimization.
+    - local: (bool): If True, perform a local optimization. If False, perform a global optimization.
+    
+    Returns:
+    - Optimal dipole parameters (positions, orientations, strengths).
+    """
+
+    # Nested objective function for the optimization
+    def objective_function(d_params, pos, fwd, data):
+        """
+        Objective function to minimize: the difference between measured data and the forward model prediction.
+
+        Parameters:
+        - d_params: Dipole parameters (n_dipoles*6). Each successive 6 indices contain the position (x, y, z) of the nth dipole and strength of each of the 3 dipole orientations.
+        - pos: Position of all the source space voxels (n_voxels x 3).
+        - fwd: Leadfield matrix for all of source space (n_sensors x n_voxels).
+        - data: Recorded data (n_sensors x timepoints).
+
+        Returns:
+        - Error (L2-norm) between predicted data and observed data.
+        """
+        # Extract some useful variables
+        n_dipoles = len(d_params) // 6
+        # Reshape
+        d_params = d_params.reshape((n_dipoles, 6), order='C')
+        d_pos = d_params[:, :3]
+        d_strength = d_params[:, 3:]
+        d_strength = d_strength.flatten(order='C')
+
+        # Extract the relevant parts of the leadfield matrix based on the estimated positions
+        matching_indices = find_closest_rows(pos, d_pos)
+        # Check if the number of matching indices is equal to the number of dipoles
+        if len(matching_indices) != n_dipoles:
+            print(matching_indices)
+            print(d_params)
+            raise ValueError("Number of matching indices does not match the number of dipoles.")
+        
+        # For each dipole, the entries in the leadfield matrix are the 3*matching_indices, 3*matching_indices+1, 3*matching_indices+2 for each orientation.
+        matching_indices = np.array([ [3*x, 3*x+1, 3*x+2] for x in matching_indices]).flatten()
+        d_fwd = fwd[:, matching_indices]
+        
+        # Compute the predicted data
+        predicted_data =  d_fwd @ d_strength.T
+        
+        # Calculate the L2 norm of the error
+        error = np.linalg.norm(predicted_data - data)
+        return error
+
+    # Define the bounds for the dipole positions
+    bound_max = pos.max(axis=0)
+    bound_min = pos.min(axis=0)
+    bounds = [(bound_min[0], bound_max[0]), (bound_min[1], bound_max[1]), (bound_min[2], bound_max[2]), 
+            (None, None), (None, None), (None, None)] * n_dipoles
+
+    # Define the initial conditions
+    if initial_guess is None:
+        # Generate a random initial guess for the dipole parameters
+        # Place in middle of source space if only 1 dipole
+        if n_dipoles == 1:
+            middle_pos = np.mean(pos, axis=0)
+            initial_guess = np.ones(n_dipoles * 6)
+            initial_guess[:3] = middle_pos
+        # Otherwise, randomly place the dipoles within the source space
+        else:
+            initial_guess = np.random.rand(n_dipoles * 6)  # 3 for position, 3 for strength of each orientation
+            # Scale the random values to the range of the source space
+            index = np.arange(len(initial_guess))%6
+            initial_guess[index==0] = initial_guess[index==0] * (bound_max[0] - bound_min[0]) + bound_min[0]
+            initial_guess[index==1] = initial_guess[index==1] * (bound_max[1] - bound_min[1]) + bound_min[1]
+            initial_guess[index==2] = initial_guess[index==2] * (bound_max[2] - bound_min[2]) + bound_min[2]
+
+    # Use an optimization routine to minimize the objective function
+
+    if local:
+        # Perform a local optimization
+        result = minimize(objective_function, initial_guess, args=(pos, fwd, data), bounds=bounds, method='Nelder-Mead', )
+    else:
+        # Perform a global optimization
+        result = scipy.optimize.basinhopping(objective_function, initial_guess, minimizer_kwargs={'args': (pos, fwd, data), 'bounds': bounds, 'method': 'Nelder-Mead'})
+    print(result)
+    # Adjust the position vector since we take the closest one
+    d_x = result.x.reshape((n_dipoles, 6), order='C')
+    d_pos = d_x[:, :3]
+    d_pos = pos[find_closest_rows(pos, d_pos)]
+    d_strength = d_x[:, 3:]
+    
+    # Return the optimized dipole parameters
+    return d_pos, d_strength
