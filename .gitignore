@@ -6,6 +6,7 @@ __pycache__
 SAGA Interface for Matlab (94-2303-0200-0-7)
 test.nii.gz
 fwd_dipole.npy
+fwd_dipole_again.npy
 .DS_Store
 EMG_fwdmodel.ipynb
 EMG_inverse.ipynb
