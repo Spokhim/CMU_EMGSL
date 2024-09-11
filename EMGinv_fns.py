@@ -2,7 +2,7 @@ from scipy.constants import epsilon_0
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.special import kv as K0, iv as I0
-from scipy.linalg import solve
+from scipy.linalg import solve, pinv, svd
 from joblib import Parallel, delayed
 
 import scipy.io
@@ -11,8 +11,6 @@ import os
 import pydicom
 import cv2 # opencv
 import sklearn
-
-from scipy.linalg import pinv, svd
 
 from tmsi_python_interface.TMSiFileFormats.file_readers import Poly5Reader, Xdf_Reader, Edf_Reader
 
@@ -322,7 +320,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None):
     - fwd (array): Leadfield matrix (n_channels x n_sources).
     - data_cov (array): Data covariance matrix of EMG data (n_channels x n_channels) estimated during signal of interested.  
                         Can be calculated using np.cov(data, rowvar=True). Or use MNE Python's mne.cov.compute_covariance().
-    - noise_cov (array): Noise covariance matrix (n_channels x n_channels), optional. If None, identity matrix is used.
+    - noise_cov (array): Noise covariance matrix (n_channels x n_channels), optional. If None, don't whiten based on noise covariance.
 
     Returns:
     - weights (array): Beamformer weights for each source (n_sources x n_channels).
@@ -330,11 +328,13 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None):
 
     n_channels, n_sources = fwd.shape
 
-    # # Regularize the noise covariance matrix
-    # if noise_cov is None:
-    #     noise_cov = np.eye(n_channels)
-    # else:
-    #     noise_cov = noise_cov + 0.05 * np.trace(noise_cov) / n_channels * np.eye(n_channels)  # Optional regularization
+    # If noise covariance matrix, whiten the data
+    if noise_cov is not None:
+        # Compute the whitening matrix using the noise covariance - svd should be same as pca since high-pass filtered. Can consider using ZCA.
+        U_noise, s_noise, _ = svd(noise_cov)
+        noise_whitening = np.diag(1.0 / np.sqrt(s_noise)) @ U_noise.T
+        # Whiten the data covariance matrix
+        data_cov = noise_whitening @ data_cov @ noise_whitening.T.conj()
 
     # Compute the inverse of the data covariance matrix
     data_cov_inv = pinv(data_cov)  # Should be able to just use the inverse?
