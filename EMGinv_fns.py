@@ -4,21 +4,16 @@ import matplotlib.pyplot as plt
 from scipy.special import kv as K0, iv as I0
 from scipy.linalg import solve, pinv, svd
 from joblib import Parallel, delayed
-
-import scipy.io
-import numpy as np
-import os
-import pydicom
-import cv2 # opencv
-import sklearn
-
-from tmsi_python_interface.TMSiFileFormats.file_readers import Poly5Reader, Xdf_Reader, Edf_Reader
-
 import sys
 from os.path import join, dirname, realpath
+import scipy.io
+import os
+import sklearn
+import mne 
+
+from tmsi_python_interface.TMSiFileFormats.file_readers import Poly5Reader, Xdf_Reader, Edf_Reader
 import tkinter as tk
 from tkinter import filedialog
-import mne 
 
 def dipole_potential(r_vec, p, r0):
     """If in cylindrical co-ordinates, make sure r_vec[1] = 0.
