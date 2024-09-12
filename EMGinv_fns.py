@@ -178,8 +178,8 @@ def pos_to_3Dgrid_converter(pos, source_activity, scaling):
         source_activity = np.sum(reshaped_act, axis=0)
 
     # Assign activity values to the grid
-    for i in range(len(source_activity)):
-        grid[x_indices[i], y_indices[i], z_indices[i]] = slice_act[i]
+    for i, slice_act in enumerate(source_activity):
+        grid[x_indices[i], y_indices[i], z_indices[i]] = slice_act
 
     return grid
 
