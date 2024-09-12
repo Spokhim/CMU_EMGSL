@@ -146,7 +146,7 @@ def pos_to_3Dgrid_converter(pos, source_activity, scaling):
     
     Parameters:
     - pos (array): Positions of the source space voxels (n_voxels x 3).
-    - source_activity (array): Source activity (n_sources x 1) for each dipole orientation.
+    - source_activity (array): Source activity (n_sources x 1) for each dipole orientation. n_sources = n_voxels * n_orientations.
     - scaling (tuple): Tuple containing the (x, y, z) scaling factors to convert the positions to indices of the 3D grid.
 
     Returns:
@@ -171,7 +171,7 @@ def pos_to_3Dgrid_converter(pos, source_activity, scaling):
     y_indices = ((pos[:, 1] - y_min) / (y_max - y_min) * (y_res - 1)).astype(int)
     z_indices = ((pos[:, 2] - z_min) / (z_max - z_min) * (z_res - 1)).astype(int)
 
-    # Reshape source activity to condense N source orientations into 1 per voxel - Confirmed works for 3 orientations, may not for more.
+    # Reshape source activity to condense N source orientations into 1 per voxel - Confirmed works for 3 orientations, should work for more.
     if pos.shape[0] != source_activity.shape[0]:
         reshape_by = source_activity.shape[0] // pos.shape[0]
         reshaped_act = np.array(source_activity.reshape((reshape_by, -1), order='F'))
