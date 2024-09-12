@@ -100,12 +100,14 @@ def fwd_generator(potential_func, pos, electrode_positions):
 
     return fwd
 
-def load_src_template(filename=None, con='muscle', xscaling=1.5e-4, yscaling=1.5e-4, zscaling=0.5e-2):
+def load_src_template(filename=None, con='muscle', flip_dim=None, xscaling=1.5e-4, yscaling=1.5e-4, zscaling=0.5e-2):
     """Load the source space template from the MAT file.  This will be the positions of the voxels in the source space.
     
     Parameters: 
     - filename (str): the path to the file to be loaded.
     - con (str): the condition to load the source space under.  Options are 'muscle' or 'arm'.
+    - flip_dim (int): the dimension to flip the source space along if source orientation is incorrect. 
+                    Flipping dimension 1 (y) is useful when flipping between left and right arm orientation.
     - xscaling, yscaling, zscaling (float): the scaling factors for the x, y, z axes respectively to turn into SI units (m).
 
     Returns:
@@ -131,11 +133,15 @@ def load_src_template(filename=None, con='muscle', xscaling=1.5e-4, yscaling=1.5
     print(pos.max(axis=1))
     print(pos.min(axis=1))
 
-    # # Right now pos is just indexes... not SI units. Do a rough conversion to SI units (i.e. m)
+    # # Right now pos is just indexes... not SI units. Do a conversion to SI units (i.e. m)
     pos[:, 0] = pos[:, 0] * xscaling
     pos[:, 1] = pos[:, 1] * yscaling
     # # For z axis, different scaling - Let's say it's ~13cm
     pos[:, 2] = pos[:, 2] * zscaling
+
+    # Flip dimensions as appropriate.
+    if flip_dim is not None:
+        pos[:, flip_dim] = 2*pos.mean(axis=0)[flip_dim] - pos[:, flip_dim]
 
     return pos
 
@@ -328,7 +334,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None):
 
     n_channels, n_sources = fwd.shape
 
-    # If noise covariance matrix, whiten the data
+    # If noise covariance matrix provided, whiten the data
     if noise_cov is not None:
         # Compute the whitening matrix using the noise covariance - svd should be same as pca since high-pass filtered. Can consider using ZCA.
         U_noise, s_noise, _ = svd(noise_cov)
