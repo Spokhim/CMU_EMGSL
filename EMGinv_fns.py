@@ -175,7 +175,7 @@ def pos_to_3Dgrid_converter(pos, source_activity, scaling):
     if pos.shape[0] != source_activity.shape[0]:
         reshape_by = source_activity.shape[0] // pos.shape[0]
         reshaped_act = np.array(source_activity.reshape((reshape_by, -1), order='F'))
-        source_activity = np.sum(reshaped_act, axis=0)
+        source_activity = np.linalg.norm(reshaped_act, axis=0)
 
     # Assign activity values to the grid
     for i, slice_act in enumerate(source_activity):
@@ -456,7 +456,7 @@ def find_weighted_centroid(pos, source_activity, fixedorient=True):
     if fixedorient is False:
         # Reshape the source activity to a n_voxels x 1 array through normalisation across the 3 orientations
         reshaped_act = source_activity.reshape((3, -1), order='F')
-        source_activity = np.linalg.sum(reshaped_act, axis=0)
+        source_activity = np.linalg.norm(reshaped_act, axis=0)
 
     # Calculate the weighted sum of positions
     weighted_sum = np.sum(pos * source_activity[:, np.newaxis], axis=0)
