@@ -174,7 +174,7 @@ def pos_to_3Dgrid_converter(pos, source_activity, scaling):
     # Assign activity values to the grid
     # Needed because 3 dipole moments per voxel 
     reshaped_act = np.array(source_activity.reshape((3, -1), order='F'))
-    slice_act = np.linalg.norm(reshaped_act, axis=0)
+    slice_act = np.sum(reshaped_act, axis=0)
     for i in range(len(slice_act)):
         grid[x_indices[i], y_indices[i], z_indices[i]] = slice_act[i]
 
@@ -453,7 +453,7 @@ def find_weighted_centroid(pos, source_activity, fixedorient=True):
     if fixedorient is False:
         # Reshape the source activity to a n_voxels x 1 array through normalisation across the 3 orientations
         reshaped_act = source_activity.reshape((3, -1), order='F')
-        source_activity = np.linalg.norm(reshaped_act, axis=0)
+        source_activity = np.linalg.sum(reshaped_act, axis=0)
 
     # Calculate the weighted sum of positions
     weighted_sum = np.sum(pos * source_activity[:, np.newaxis], axis=0)
@@ -552,6 +552,26 @@ def best_dipole_infwd(fwd, data):
     best_weights = save_arr[best_index,1:,:].diagonal(axis1=0, axis2=2)
 
     return best_index, best_weights, save_arr
+
+def fwd_fixed(fwd, orient):
+    """ This function modifies the forward model such that it is only one dipole per source space voxel.  
+    It does this by taking the weighted sum of the 3 orientations in the original forward model.  Based on the assumed orientation for all dipoles.
+
+    Parameters:
+    fwd (array): Forward model with 3 orientations per voxel (n_sensors x 3*n_voxels)
+    orient (array): Assumed orientation of the dipoles (1 x 3)
+
+    Returns:
+    fwd_fixed (array): Forward model with 1 orientation per voxel (n_sensors x n_voxels)
+    """
+
+    fwd_fixed = np.zeros((fwd.shape[0], fwd.shape[1]//3))
+
+    # For every 3 columns (orientations) perform a weighted sum by orientation
+    for i in range(fwd.shape[1]//3):
+        fwd_fixed[:,i] = np.sum(fwd[:,i*3:(i+1)*3]*orient, axis=1)
+        
+    return fwd_fixed
 
 ###########################################################################################################################################
 
