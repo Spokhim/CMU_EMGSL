@@ -530,7 +530,7 @@ def best_dipole_infwd(fwd, data):
     # Sanity check that the reshaping is correct
     # arr = np.arange(12).reshape(2,6)
     # print(arr)
-    # arr.reshape(2,-1,3, order='C')[:,0,:]
+    # arr = arr.reshape((2,2,3), order='C')[:,0,:]
     # print(arr)
 
     # Initialise array based on shape of the input data, whether it is 1D (n_electrodes) or 2D (n_electrodes x n_timepoints)
@@ -556,7 +556,7 @@ def best_dipole_infwd(fwd, data):
 
     return best_index, best_weights, save_arr
 
-def fwd_fixed(fwd, orient):
+def fwd_convertfixed(fwd, orient):
     """ This function modifies the forward model such that it is only one dipole per source space voxel.  
     It does this by taking the weighted sum of the 3 orientations in the original forward model.  Based on the assumed orientation for all dipoles.
 
@@ -568,11 +568,15 @@ def fwd_fixed(fwd, orient):
     fwd_fixed (array): Forward model with 1 orientation per voxel (n_sensors x n_voxels)
     """
 
-    fwd_fixed = np.zeros((fwd.shape[0], fwd.shape[1]//3))
+    # fwd_fixed = np.zeros((fwd.shape[0], fwd.shape[1]//3))
 
-    # For every 3 columns (orientations) perform a weighted sum by orientation
-    for i in range(fwd.shape[1]//3):
-        fwd_fixed[:,i] = np.sum(fwd[:,i*3:(i+1)*3]*orient, axis=1)
+    # # For every 3 columns (orientations) perform a weighted sum by orientation
+    # for i in range(fwd.shape[1]//3):
+    #     fwd_fixed[:,i] = np.sum(fwd[:,i*3:(i+1)*3]*orient, axis=1)
+
+    # Much faster to reshape and use dot operator
+    fwd_reshaped = fwd.reshape((fwd.shape[0], -1, 3), order='C')
+    fwd_fixed = fwd_reshaped @ np.array([0, 0, 1])
         
     return fwd_fixed
 
