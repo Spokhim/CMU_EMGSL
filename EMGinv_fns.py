@@ -316,7 +316,7 @@ def tmsi_eventextractor(channel_data):
     return events
 
 # Implement Beamformer
-def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=True):
+def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=False, max_power=False):
     """
     Constructs a Linearly Constrained Minimum Variance (LCMV) beamformer for each source in the forward model.
 
@@ -326,6 +326,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=True):
                         Can be calculated using np.cov(data, rowvar=True). Or use MNE Python's mne.cov.compute_covariance().
     - noise_cov (array): Noise covariance matrix (n_channels x n_channels), optional. If None, don't whiten based on noise covariance.
     - arr_gain (bool): Whether to apply array gain constraint to the forward model weights.
+    - max_power (bool): Whether to pick the orientation based on the maximimum the power of the beamformer source estimate. Cannot be used with arr_gain.
 
     Returns:
     - weights (array): Beamformer weights for each source (n_sources x n_channels).
@@ -344,12 +345,31 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=True):
     # Compute the inverse of the data covariance matrix
     data_cov_inv = pinv(data_cov)  # Should be able to just use the inverse?
 
+    # Different constraints for the beamformer
     if arr_gain:
         # Perform array-gain constraint by normalising the fwd matrix
         # Reshape fwd - so that the dipole orientation is the third dimension
         fwd = fwd.reshape((n_channels,-1,3), order='C')
         fwd = fwd / np.linalg.norm(fwd, axis=2)[:,:,np.newaxis]
         fwd = fwd.reshape((n_channels,-1), order='C')
+    elif max_power:
+        # fwd.shape needs to be (n_voxels, n_channels, n_orient)
+        fwd = fwd.reshape((n_channels, -1, 3), order='C')
+        fwd = fwd.swapaxes(0, 1)
+
+        numerator = data_cov_inv @ fwd1 
+        denominator = fwd.swapaxes(-2, -1).conj() @ numerator
+
+        # Use Sekihara (2015)'s formula (3.36) to find the optimal orientation to avoid doing a matrix inversion on another 3D matrix.  We need the smallest eigenvalue. 
+        eig_vals, eig_vecs = np.linalg.eig(denominator.real) # Not sure if real is corect, but it shouldn't matter in most cases...
+        order = np.argsort(np.abs(eig_vals), axis=-1)
+        max_power_ori = eig_vecs[np.arange(len(eig_vecs)), :, order[:, 0]] # Want smallest eigenvalue, and the eigenvector corresponds to eig_vec[:,i] per documentation
+
+        # Compute the lead field for the optimal orientation
+        fwd = fwd @ max_power_ori[..., np.newaxis]
+        fwd = fwd.squeeze()
+        fwd = fwd.T
+        n_sources = n_sources // 3
 
     # Calculate the beamformer weights for each source
     weights = np.zeros((n_sources, n_channels))
