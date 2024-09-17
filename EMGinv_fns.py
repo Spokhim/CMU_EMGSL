@@ -316,7 +316,7 @@ def tmsi_eventextractor(channel_data):
     return events
 
 # Implement Beamformer
-def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None):
+def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=True):
     """
     Constructs a Linearly Constrained Minimum Variance (LCMV) beamformer for each source in the forward model.
 
@@ -325,6 +325,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None):
     - data_cov (array): Data covariance matrix of EMG data (n_channels x n_channels) estimated during signal of interested.  
                         Can be calculated using np.cov(data, rowvar=True). Or use MNE Python's mne.cov.compute_covariance().
     - noise_cov (array): Noise covariance matrix (n_channels x n_channels), optional. If None, don't whiten based on noise covariance.
+    - arr_gain (bool): Whether to apply array gain constraint to the forward model weights.
 
     Returns:
     - weights (array): Beamformer weights for each source (n_sources x n_channels).
@@ -342,6 +343,13 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None):
 
     # Compute the inverse of the data covariance matrix
     data_cov_inv = pinv(data_cov)  # Should be able to just use the inverse?
+
+    if arr_gain:
+        # Perform array-gain constraint by normalising the fwd matrix
+        # Reshape fwd - so that the dipole orientation is the third dimension
+        fwd = fwd.reshape((nchannels,-1,3), order='C')
+        fwd = fwd / np.linalg.norm(fwd, axis=2)[:,:,np.newaxis]
+        fwd.reshape((n_channels,-1), order='C')
 
     # Calculate the beamformer weights for each source
     weights = np.zeros((n_sources, n_channels))
