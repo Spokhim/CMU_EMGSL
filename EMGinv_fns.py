@@ -347,9 +347,9 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=True):
     if arr_gain:
         # Perform array-gain constraint by normalising the fwd matrix
         # Reshape fwd - so that the dipole orientation is the third dimension
-        fwd = fwd.reshape((nchannels,-1,3), order='C')
+        fwd = fwd.reshape((n_channels,-1,3), order='C')
         fwd = fwd / np.linalg.norm(fwd, axis=2)[:,:,np.newaxis]
-        fwd.reshape((n_channels,-1), order='C')
+        fwd = fwd.reshape((n_channels,-1), order='C')
 
     # Calculate the beamformer weights for each source
     weights = np.zeros((n_sources, n_channels))
