@@ -359,11 +359,13 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=False, m
         fwd = fwd.reshape((n_channels, -1, 3), order='C')
         fwd = fwd.swapaxes(0, 1)
 
-        numerator = data_cov_inv @ fwd
-        denominator = fwd.swapaxes(-2, -1).conj() @ numerator
+        # numerator = data_cov_inv @ fwd
+        numerator = fwd.swapaxes(1, 2).conj() @ data_cov_inv
+        # denominator = fwd.swapaxes(-2, -1).conj() @ numerator
+        denominator = numerator @ fwd
 
         # Use Sekihara (2015)'s formula (3.36) to find the optimal orientation to avoid doing a matrix inversion on another 3D matrix.  We need the smallest eigenvalue. 
-        eig_vals, eig_vecs = np.linalg.eig(denominator.real) # Not sure if real is corect, but it shouldn't matter in most cases...
+        eig_vals, eig_vecs = np.linalg.eig(denominator.real) # Denominator should be real anyways, but just in case.
         order = np.argsort(np.abs(eig_vals), axis=-1)
         max_power_ori = eig_vecs[np.arange(len(eig_vecs)), :, order[:, 0]] # Want smallest eigenvalue, and the eigenvector corresponds to eig_vec[:,i] per documentation
 
