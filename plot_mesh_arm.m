@@ -6,13 +6,15 @@ arguments
     vertexNormals (:,3) double
     vertexLabels (:,1) uint8
     faceLabels (:,1) uint8
-    options.Alpha (3,1) double = [1;    % Bone
+    options.Alpha (4,1) double = [1;    % Bone
                                   0.8;  % Muscle
-                                  0.3]; % Vessels
-    options.Colors (3,3) double = [0.8, 0.8, 0.8;   % Gray for Bone
+                                  0.3; % Vessels
+                                  0.1]; % Skin
+    options.Colors (4,3) double = [0.8, 0.8, 0.8;   % Gray for Bone
                                   1.0, 0.6, 0.6;   % Light red for Muscle
-                                  0.6, 0.6, 1.0];  % Light blue for Vessel
-    options.Labels (1,3) uint8 = uint8([1, 2, 3]);
+                                  0.6, 0.6, 1.0;  % Light blue for Vessel
+                                  0.8500 0.3250 0.0980];  % Orange for Skin
+    options.Labels (1,4) uint8 = uint8([1, 2, 3, 4]);
 end
 
 % Create a figure for the 3D visualization
