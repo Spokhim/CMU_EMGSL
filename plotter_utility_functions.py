@@ -53,7 +53,7 @@ def plot_annotated_template_slice(ax, z, options):
             for i, row in landmarks_df.iterrows():
                 x = options['XScale']*((row['X']-options['GridColumnLeftOffset']) * grid_col_scale) + options['XOffset']
                 y = options['YScale']*((row['Y']-options['GridRowTopOffset']) * grid_row_scale) + options['YOffset']
-                print(f"x: {x} | y: {y}")
+                # print(f"x: {x} | y: {y}")
                 ax.text(x, y, row['Landmark'], fontsize=9, color='white',
                         ha='center', va='center', fontweight='bold', fontname='Consolas')
         else:
