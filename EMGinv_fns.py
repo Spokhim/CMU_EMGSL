@@ -332,7 +332,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, pos=None, arr_gai
     - noise_cov (array): Noise covariance matrix (n_channels x n_channels), optional. If None, don't whiten based on noise covariance.
     - pos (array): Positions of the source space voxels (n_sources x 3).  Only needed if arr_gain is True to check if the forward model is in loose orientation.
     - arr_gain (bool): Whether to apply array gain constraint to the forward model weights.
-    - max_power (bool): Whether to pick the orientation based on the maximimum the power of the beamformer source estimate. Cannot be used with arr_gain.
+    - max_power (bool): Whether to pick the orientation based on the maximimum the power of the beamformer source estimate. Normally not used with arr_gain.
                         This may not be working properly.  Alternatively, it may not be appropriate since the dipole is thought to be oriented along the arm, which is unlikely to be
                         the direction of maximum power.  This is more useful for EEG where the dipole is likely to be oriented perpendicular to the scalp/cortex.
 
@@ -363,7 +363,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, pos=None, arr_gai
             fwd = fwd.reshape((n_channels,-1), order='C')
         else:
             fwd = fwd / np.linalg.norm(fwd, axis=0)
-    elif max_power:
+    if max_power:
         # fwd.shape needs to be (n_voxels, n_channels, n_orient)
         fwd = fwd.reshape((n_channels, -1, 3), order='C')
         fwd = fwd.swapaxes(0, 1)
