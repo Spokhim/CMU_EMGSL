@@ -12,3 +12,4 @@ joblib
 ipykernel
 scikit-learn
 pyxdf
+openpyxl
