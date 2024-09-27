@@ -321,7 +321,7 @@ def tmsi_eventextractor(channel_data):
     return events
 
 # Implement Beamformer
-def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=False, max_power=False):
+def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, pos=None, arr_gain=False, max_power=False):
     """
     Constructs a Linearly Constrained Minimum Variance (LCMV) beamformer for each source in the forward model.
 
@@ -330,6 +330,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=False, m
     - data_cov (array): Data covariance matrix of EMG data (n_channels x n_channels) estimated during signal of interested.  
                         Can be calculated using np.cov(data, rowvar=True). Or use MNE Python's mne.cov.compute_covariance().
     - noise_cov (array): Noise covariance matrix (n_channels x n_channels), optional. If None, don't whiten based on noise covariance.
+    - pos (array): Positions of the source space voxels (n_sources x 3).  Only needed if arr_gain is True to check if the forward model is in loose orientation.
     - arr_gain (bool): Whether to apply array gain constraint to the forward model weights.
     - max_power (bool): Whether to pick the orientation based on the maximimum the power of the beamformer source estimate. Cannot be used with arr_gain.
                         This may not be working properly.  Alternatively, it may not be appropriate since the dipole is thought to be oriented along the arm, which is unlikely to be
@@ -355,10 +356,13 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, arr_gain=False, m
     # Different constraints for the beamformer
     if arr_gain:
         # Perform array-gain constraint by normalising the fwd matrix
-        # Reshape fwd - so that the dipole orientation is the third dimension
-        fwd = fwd.reshape((n_channels,-1,3), order='C')
-        fwd = fwd / np.linalg.norm(fwd, axis=2)[:,:,np.newaxis]
-        fwd = fwd.reshape((n_channels,-1), order='C')
+        if pos.shape[0] != source_activity.shape[0]:
+            # Reshape fwd - so that the dipole orientation is the third dimension if given fwd model in loose orientation
+            fwd = fwd.reshape((n_channels,-1,3), order='C')
+            fwd = fwd / np.linalg.norm(fwd, axis=2)[:,:,np.newaxis]
+            fwd = fwd.reshape((n_channels,-1), order='C')
+        else:
+            fwd = fwd / np.linalg.norm(fwd, axis=0)
     elif max_power:
         # fwd.shape needs to be (n_voxels, n_channels, n_orient)
         fwd = fwd.reshape((n_channels, -1, 3), order='C')
