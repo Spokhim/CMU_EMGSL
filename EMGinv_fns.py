@@ -602,11 +602,11 @@ def fwd_convertfixed(fwd, orient):
     It does this by taking the weighted sum of the 3 orientations in the original forward model.  Based on the assumed orientation for all dipoles.
 
     Parameters:
-    fwd (array): Forward model with 3 orientations per voxel (n_sensors x 3*n_voxels)
-    orient (array): Assumed orientation of the dipoles (1 x 3)
+    - fwd (array): Forward model with 3 orientations per voxel (n_sensors x 3*n_voxels)
+    - orient (array): Assumed orientation of the dipoles (1 x 3)
 
     Returns:
-    fwd_fixed (array): Forward model with 1 orientation per voxel (n_sensors x n_voxels)
+    - fwd_fixed (array): Forward model with 1 orientation per voxel (n_sensors x n_voxels)
     """
 
     # fwd_fixed = np.zeros((fwd.shape[0], fwd.shape[1]//3))
@@ -620,6 +620,34 @@ def fwd_convertfixed(fwd, orient):
     fwd_fixed = fwd_reshaped @ np.array([0, 0, 1])
         
     return fwd_fixed
+
+def bone_remover(pos, fwd, x0, y0, r):
+    """ Remove all source space dipoles within a cylinder of radius r centred at (x0, y0) representing bone.
+    
+    Parameters:
+    - pos (array): Positions of the source space dipoles (n_dipoles x 3).
+    - fwd (array): Forward model matrix (n_sensors x n_sources).
+    - x0 (float): x-coordinate of the cylinder centre.
+    - y0 (float): y-coordinate of the cylinder centre.
+    - r (float): Radius of the cylinder.
+
+    Returns:
+    - pos (array): Positions of the source space dipoles within the cylinder (n_dipoles x 3).
+    - fwd (array): Forward model matrix for the dipoles within the cylinder (n_sensors x n_sources).    
+    """
+
+    x = pos[:, 0]
+    y = pos[:, 1]
+
+    inside_cylinder = (x - x0)**2 + (y - y0)**2  >= r**2
+    pos = pos[inside_cylinder]
+    if pos.shape[0] == fwd.shape[1]:
+        fwd = fwd[:,inside_cylinder]
+    else:
+        orientations = fwd.shape[1] // pos.shape[0]
+        fwd = fwd[:,np.repeat(inside_cylinder, orientations)]
+
+    return pos, fwd
 
 ###########################################################################################################################################
 
