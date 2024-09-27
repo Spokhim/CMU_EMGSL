@@ -24,9 +24,10 @@ The inputs for the EMG inverse source localisation are as follows:
 1. **Electrode positions**: The electrode positions should be stored in a file with the following columns: 'Channel_Name', 'X', 'Y', 'Z'. The 'Channel_Name' column should contain the channel nuname, and the 'X', 'Y', 'Z' columns should contain the corresponding coordinates.  
     * Alternatively, positions can be created following the steps `Electrode_pos_mapper.py`.  This involves an initial selection of electrode positions defining the two ends of the grid such as using https://github.com/Neuro-Mechatronics-Interfaces/Annotation_Tools on MRI images and then using the `Electrode_pos_mapper.py` to interpolate the positions of the remaining electrodes.
 2. **EMG data**: The EMG data can be loaded with `load_tmsi_data` or `load_tmsi_combine`.  The data should end in the form of an array with dimensions (n_channels, n_samples).
-3. **Forward model**: The forward model can be created with the process in `Fwd_BEM_MNE.ipynb`.  Alternative exist in `EMGinv_fns.py`.  
-The forward model is a matrix that maps the source activity to the electrode data.  The forward model can be created using the electrode positions and the arm model.  
-Currently, the treatment of the bones in the arm is the next major imporvement to be made to the forward model.
+3. **Forward model (fwd)**: The forward model can be created with the process in `Fwd_BEM_MNE.ipynb`.  Alternative exist in `EMGinv_fns.py`.  The forward model is a matrix that maps the source activity to the electrode data.  The forward model can be created using the electrode positions and the arm model.  Currently, the treatment of the bones in the arm is the next major improvement to be made to the forward model.
+4. **Source space (pos)**: The source space is a matrix that contains the XYZ coordinates of the dipole sources.  This can be generated from a mesh with `Fwd_BEM_MNE.ipynb` or from an MRI image with `EMGinv_fns.py`.
+
+* A note about the coordinate system: The X-axis points to the right and follows the electrode positions, the Y-axis points forward with the palm facing the positive direction, and the Z-axis points upwards from proximal to distal along the arm.
 
 ## Processing Steps
 
