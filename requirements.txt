@@ -5,8 +5,10 @@ pymeshfix
 scipy
 pandas
 pyvistaqt
+PyQt5
 mat73
 pydicom
 joblib
 ipykernel
 scikit-learn
+pyxdf
