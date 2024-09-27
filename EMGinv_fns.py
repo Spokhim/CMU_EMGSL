@@ -356,7 +356,7 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, pos=None, arr_gai
     # Different constraints for the beamformer
     if arr_gain:
         # Perform array-gain constraint by normalising the fwd matrix
-        if pos.shape[0] != source_activity.shape[0]:
+        if pos.shape[0] != n_sources:
             # Reshape fwd - so that the dipole orientation is the third dimension if given fwd model in loose orientation
             fwd = fwd.reshape((n_channels,-1,3), order='C')
             fwd = fwd / np.linalg.norm(fwd, axis=2)[:,:,np.newaxis]
