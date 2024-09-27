@@ -27,7 +27,7 @@ The inputs for the EMG inverse source localisation are as follows:
 3. **Forward model (fwd)**: The forward model can be created with the process in `Fwd_BEM_MNE.ipynb`.  Alternative exist in `EMGinv_fns.py`.  The forward model is a matrix that maps the source activity to the electrode data.  The forward model can be created using the electrode positions and the arm model.  Currently, the treatment of the bones in the arm is the next major improvement to be made to the forward model.
 4. **Source space (pos)**: The source space is a matrix that contains the XYZ coordinates of the dipole sources.  This can be generated from a mesh with `Fwd_BEM_MNE.ipynb` or from an MRI image with `EMGinv_fns.py`.
 
-* A note about the coordinate system: The X-axis points to the right and follows the electrode positions, the Y-axis points forward with the palm facing the positive direction, and the Z-axis points upwards from proximal to distal along the arm.
+A note about the coordinate system: The X-axis points to the right and follows the electrode positions, the Y-axis points forward with the palm facing the positive direction, and the Z-axis points upwards from proximal to distal along the arm.
 
 ## Processing Steps
 
