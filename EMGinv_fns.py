@@ -253,12 +253,13 @@ def load_tmsi_data(filename=None, return_mne_object=False):
     else:
         return samples, ch_names, sample_rate, num_channels
 
-def load_tmsitomne_combine(f_prox=None, f_dist=None):
+def load_tmsitomne_combine(f_prox=None, f_dist=None, scale=1e-6):
     """ Combines the distal and proximal datasets from TMSI together into one MNE object.
     
     Parameters: 
     - f_prox (str): the path to the proximal file to be loaded.
     - f_dist (str): the path to the distal file to be loaded.
+    - scale (float): the scaling factor.  By default it will convert the data from uV to V.
 
     Returns:
     - MNE_raw (MNE raw object): the combined MNE object.
@@ -279,6 +280,10 @@ def load_tmsitomne_combine(f_prox=None, f_dist=None):
 
     dist_sample = dist[0][:, dist_sec[0]:dist_sec[-1]]
     prox_sample = prox[0][:, prox_sec[0]:prox_sec[-1]]
+
+    # Scale the data channels
+    dist_sample[:64] = dist_sample[:64]*scale
+    prox_sample[:64] = prox_sample[:64]*scale
 
     del dist, prox
     # Create MNE raw object
