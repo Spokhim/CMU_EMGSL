@@ -4,6 +4,14 @@ This repository contains mostly Python code for the purpose of performing invers
 `EMG_pipeline.ipynb` is the main file for analysis and demonstrates how to use all the necessary functions contained in `EMGinv_fns.py`. 
 `Fwd_BEM_MNE.ipynb` is a notebook that demonstrates how to create a forward model using the BEM method for use in `EMG_pipeline.ipynb`.
 
+## Installation
+If you have `pip`, then you can install Python requirements using:
+```python
+pip install -r requirements.txt
+```
+
+Please note that before running the `.ipynb` files, you must have actual Data and electrode maps, as described below, in the `Data` sub-folder of this project root folder. 
+
 ## Features
 
 - **Data Preprocessing**: Load and preprocess EMG data from tMSI devices.

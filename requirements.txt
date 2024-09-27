@@ -1,0 +1,9 @@
+mne
+numpy
+matplotlib
+pymeshfix
+scipy
+pandas
+pyvistaqt
+mat73
+pydicom
