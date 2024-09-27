@@ -36,4 +36,10 @@ The processing steps in the EMG source inversion pipeline are as follows:
 2. **Preprocess Data**: Preprocess the EMG data by filtering and normalising it.
 3. **Construct Noise and Data Covariance Matrices**: Construct the noise and data covariance matrices from the EMG data.
 4. **Solver**: Solve the inverse problem using one of the available solvers.
+    * Currently the beamformer is the recommended solver.  In which case there are three main items to adjust:
+        * fwd_convertfix: Whether to convert the forward model to fixed orientation via providing the known source orientations.
+        * arr_gain: Whether to use the array gain constraint to normalise the forward model.
+        * max_power: Whether to use the max power constraint to fix the orientation of the dipole.
 5. **Visualise Results**: Visualise the results of the inverse source localisation on image slices.
+    * Care needs to be taken when swapping between left and right arms (the helper MRI diagram may not be accurate).
+    * When looking at a 3D plot of source activity, it would be beneficial to look at different levels of thresholding.
