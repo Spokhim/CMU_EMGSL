@@ -10,7 +10,7 @@ x = TMSiSAGA.Poly5.read(INPUT_FILE);
 uni = filtfilt(b,a,x.samples(1:64,:)')';
 t = 0:(1/x.sample_rate):((size(uni,2)-1)/x.sample_rate);
 figure('Color','w','WindowState','maximized'); 
-plot(t,uni' + (0:Y_OFFSET:(Y_OFFSET*63)));
+plot(uni' + (0:Y_OFFSET:(Y_OFFSET*63)));
 set(gca,'ColorOrder',jet(64),'YTick',0:Y_OFFSET:(Y_OFFSET*63),'YTickLabel',1:64);
 [~,f,~] = fileparts(INPUT_FILE);
 title(gca,strrep(f,'_','\_'));
