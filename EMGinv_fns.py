@@ -333,8 +333,8 @@ def lcmv_beamformer_constructor(fwd, data_cov, noise_cov=None, pos=None, arr_gai
     - pos (array): Positions of the source space voxels (n_sources x 3).  Only needed if arr_gain is True to check if the forward model is in loose orientation.
     - arr_gain (bool): Whether to apply array gain constraint to the forward model weights.
     - max_power (bool): Whether to pick the orientation based on the maximimum the power of the beamformer source estimate. Normally not used with arr_gain.
-                        This may not be working properly.  Alternatively, it may not be appropriate since the dipole is thought to be oriented along the arm, which is unlikely to be
-                        the direction of maximum power.  This is more useful for EEG where the dipole is likely to be oriented perpendicular to the scalp/cortex.
+                        May not be appropriate since the dipole is thought to be oriented along the arm, which is unlikely to be the direction of maximum power for EMG.
+                        This is more useful for EEG where the dipole is likely to be oriented perpendicular to the scalp/cortex.
 
     Returns:
     - weights (array): Beamformer weights for each source (n_sources x n_channels).
