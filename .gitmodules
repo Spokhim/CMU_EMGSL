@@ -1,0 +1,3 @@
+[submodule "tmsi_python_interface"]
+	path = tmsi_python_interface
+	url = https://gitlab.com/tmsi/tmsi-python-interface

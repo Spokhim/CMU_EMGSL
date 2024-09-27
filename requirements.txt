@@ -7,3 +7,6 @@ pandas
 pyvistaqt
 mat73
 pydicom
+joblib
+ipykernel
+scikit-learn
