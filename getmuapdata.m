@@ -1,7 +1,7 @@
 
 %% 1. Load file and look for a decent channel to generate masks from peaks.
 TMSI_SAGA_MATLAB_SDK_FOLDER = 'C:/MyRepos/NML/MWB_TMSi';
-INPUT_FILE = 'C:/Data/MetaWB/MCP04_2024_09_17/TMSi/MCP04_2024_09_17_A_PROX_3.poly5';
+INPUT_FILES = 'C:/Data/MetaWB/MCP04_2024_09_17/TMSi/MCP04_2024_09_17_A_PROX_3.poly5';
 Y_OFFSET = 50; % Set spacing between traces
 
 addpath(TMSI_SAGA_MATLAB_SDK_FOLDER);
@@ -16,27 +16,37 @@ set(gca,'ColorOrder',jet(64),'YTick',0:Y_OFFSET:(Y_OFFSET*63),'YTickLabel',1:64)
 title(gca,strrep(f,'_','\_'));
 
 %% 2. Find peak locations of a good channel
-% GOOD_CH = 1;
 GOOD_CH = 25;
-[~,locs] = findpeaks(-uni(GOOD_CH,:),'MinPeakHeight',100);
-figure; 
-plot(uni(GOOD_CH,:),'MarkerIndices',locs,'Marker','*','MarkerEdgeColor','r');
+THRESHOLD_UV = 45;
+[~,locs] = findpeaks(-uni(GOOD_CH,:),'MinPeakHeight',THRESHOLD_UV);
+fig = figure('Color','w','Name',sprintf('Channel-%02d Peaks', GOOD_CH)); 
+ax = axes(fig,'NextPlot','add','FontName','Tahoma');
+plot(ax,uni(GOOD_CH,:), ...
+    'MarkerIndices',locs, ...
+    'Marker','*', ...
+    'MarkerEdgeColor','r');
+
+% Get snippets of individual waveforms
 vec = -20:20;
 mask = locs' + vec;
-tmp = uni(1,:);
-snips = tmp(mask);
-figure; plot(mean(snips,1));
-title(sprintf('Ch-%02d Templates', GOOD_CH));
 
-% Need to get component for all channels
-muaps = zeros(64,41);
-for i = 1:64
-    tmp = uni(i,:);
-    snips = tmp(mask);
-    % figure; plot(mean(snips,1));
-    muaps(i,:) = mean(snips,1);
+snips = cell(numel(locs),1);
+for i = 1:numel(locs)
+    snips{i} = uni(:,mask(i,:));
+end
+snips = horzcat(snips{:}); 
+R = (1/(size(snips,2))) * (snips * snips');
+P = pinv(R);
+
+wsnips = zeros(64,numel(vec),numel(locs));
+for i = 1:numel(locs)
+    wsnips(:,:,i) = P  * uni(:,mask(i,:));
 end
 
+% Need to get component for all channels
+muaps = mean(wsnips,3);
+
 save(sprintf('Data/%s_muaps_mask.mat',f), 'mask');
+save(sprintf('Data/%s_muap_templates.mat',f), 'muaps');
 
 
