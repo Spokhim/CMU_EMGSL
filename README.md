@@ -5,12 +5,25 @@ This repository contains mostly Python code for the purpose of performing invers
 `Fwd_BEM_MNE.ipynb` is a notebook that demonstrates how to create a forward model using the BEM method for use in `EMG_pipeline.ipynb`.
 
 ## Installation
-If you have `pip`, then you can install Python requirements using:
+### Python
+If using `VSCode` with the Python extensions installed for Jupyter notebook, there is a preset `task.json` and `settings.json` which can be modified for convenience, with a suggested `.venv` folder for setting up a virtual environment. To create a virtual environment, make sure that your `python` interpreter has the `venv` module installed, then use `python -m venv create .venv` and `python -m venv activate .venv` to enter the active environment. Thereafter, when opening the workspace folder in VSCode, it should default to the virtual environment within `.venv`. 
+
+Once you have activated your virtual environment (assuming your `python` interpreter has `pip` installed for package management), you can install dependencies using
 ```python
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
-Please note that before running the `.ipynb` files, you must have actual Data and electrode maps, as described below, in the `Data` sub-folder of this project root folder. 
+Additionally, when cloning this repository to a local copy, to initialize the `tmsi_python_interface` Python module correctly, you should initialize its gitmodule e.g. from a `git` bash terminal:  
+```bash
+git submodule update --init --recursive
+```
+This ensures that the pre-requisite `poly5` file readers are present so that you can read the Poly5 files from Python notebooks.  
+
+### MATLAB
+If you have run the Python installation, including the submodule initialization step, then all MATLAB requirements (tested on MATLAB R2024a+ but should be backwards-compatible with most versions) aside from MATLAB itself should already be present. Please note that the MATLAB `example_poly5_to_muap_pipeline.m`, you must initialize the `git` submodule `+io`, in a folder named `+io` or else the namespace conventions used in the MATLAB script won't work.  
+
+### Other Files
+Before running the `.ipynb` files, you must have actual Data and electrode maps, as described below, in the `Data` sub-folder of this project root folder. 
 
 ## Features
 
@@ -18,12 +31,23 @@ Please note that before running the `.ipynb` files, you must have actual Data an
 - **Inverse Source Localisation**: Perform inverse source localisation on EMG using a few basic algorithms.
 - **Visualisation**: Plot the results of the inverse source localisation.
 
-## File Structure
+## File Structure  
+A typical workflow may involve steps as follows:  
+1. Acquire experimental data, preferably with `.poly5` files saved following a convention like  
+```
+<SUBJ>_<YYYY>_<MM>_<DD>_<A_TAG>_<BLOCK>.poly5
+<SUBJ>_<YYYY>_<MM>_<DD>_<B_TAG>_<BLOCK>.poly5
+```  
+2. Substitute in the variables as indicated in the MATLAB script `example_poly5_to_muap_pipeline.m` at the top, depending on which experimental block you'd like to export for (or, modify it to iterate over a batch of blocks, exporting files for each).  
+3. Once export has completed, modify the relevant filename variables in `EMG_pipeline.ipynb`.  
 
-- **EMGinv_fns.py**: Contains all the functions necessary for performing inverse source localisation.
-- **EMG_pipeline.ipynb**: The main Jupyter notebook for analysis.
-- **Fwd_BEM_MNE.ipynb**: A Jupyter notebook demonstrating how to create a forward model using the BEM method.
-- **README.md**: This documentation file.
+### Python
+- **`EMGinv_fns.py`**: Contains all the functions necessary for performing inverse source localisation.
+- **`EMG_pipeline.ipynb`**: The main Jupyter notebook for analysis.
+- **`Fwd_BEM_MNE.ipynb`**: A Jupyter notebook demonstrating how to create a forward model using the BEM method.
+
+### MATLAB 
+- **`example_poly5_to_muap_pipeline.m`**: Illustrates how to export MUAP template waveforms, masks, and covariance matrices to `.mat` files for use with `EMG_pipeline.ipynb`. 
 
 ## Inputs
 

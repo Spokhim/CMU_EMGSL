@@ -1,10 +1,8 @@
-from mne.bem import FIFF, read_surface, _ico_downsample, _check_complete_surface
+from mne.bem import logger, FIFF, read_surface, _ico_downsample, _check_complete_surface, _order_surfaces, _check_surfaces, _check_thicknesses # type: ignore
 import os
 from pathlib import Path
 
-def _surfaces_to_bem_no_size_check(
-    surfs, ids, sigmas, ico=None, rescale=True, incomplete="raise", extra=""
-):
+def _surfaces_to_bem_no_size_check(surfs, ids, sigmas, ico=None, rescale=True, incomplete="raise", extra=""):
     """Convert surfaces to a BEM."""
     # equivalent of mne_surf2bem
     # surfs can be strings (filenames) or surface dicts

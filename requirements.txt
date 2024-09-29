@@ -13,3 +13,5 @@ ipykernel
 scikit-learn
 pyxdf
 openpyxl
+mne
+nibabel
