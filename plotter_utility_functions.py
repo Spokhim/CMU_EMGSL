@@ -53,22 +53,40 @@ def plot_annotated_template_slice(ax, z, options):
 
     # Plot the landmarks if specified
     if options['AddLabels']:
-        if "ALL" in options['LandmarksToAdd']:
-            for i, row in landmarks_df.iterrows():
-                x = options['XScale']*((row['X']-options['GridColumnLeftOffset']) * grid_col_scale) + options['XOffset']
-                y = options['YScale']*((row['Y']-options['GridRowTopOffset']) * grid_row_scale) + options['YOffset']
-                # print(f"x: {x} | y: {y}")
-                ax.text(x, y, row['Landmark'], fontsize=9, color='white',
-                        ha='center', va='center', fontweight='bold', fontname='Consolas')
+        if options['AddImage']:
+            if "ALL" in options['LandmarksToAdd']:
+                for i, row in landmarks_df.iterrows():
+                    x = row['X']
+                    y = row['Y']
+                    # print(f"x: {x} | y: {y}")
+                    ax.text(x, y, row['Landmark'], fontsize=9, color='white',
+                            ha='center', va='center', fontweight='bold', fontname='Consolas')
+            else:
+                for landmark in options['LandmarksToAdd']:
+                    row = landmarks_df[landmarks_df['Landmark'].str.upper() == landmark.upper()]
+                    if not row.empty:
+                        x = row.iloc[0]['X']
+                        y = row.iloc[0]['Y']
+                        ax.text(x, y, row.iloc[0]['Landmark'], 
+                                fontsize=9, color='white', ha='center', va='center', 
+                                fontweight='bold', fontname='Consolas')
         else:
-            for landmark in options['LandmarksToAdd']:
-                row = landmarks_df[landmarks_df['Landmark'].str.upper() == landmark.upper()]
-                if not row.empty:
-                    x = options['XScale']*((row.iloc[0]['X']-options['GridColumnLeftOffset'])) * grid_col_scale + options['XOffset']
-                    y = options['YScale']*((row.iloc[0]['Y']-options['GridRowTopOffset'])) * grid_row_scale + options['YOffset']
-                    ax.text(x, y, row.iloc[0]['Landmark'], 
-                            fontsize=9, color='white', ha='center', va='center', 
-                            fontweight='bold', fontname='Consolas')
+            if "ALL" in options['LandmarksToAdd']:
+                for i, row in landmarks_df.iterrows():
+                    x = options['XScale']*((row['X']-options['GridColumnLeftOffset']) * grid_col_scale) + options['XOffset']
+                    y = options['YScale']*((row['Y']-options['GridRowTopOffset']) * grid_row_scale) + options['YOffset']
+                    # print(f"x: {x} | y: {y}")
+                    ax.text(x, y, row['Landmark'], fontsize=9, color='white',
+                            ha='center', va='center', fontweight='bold', fontname='Consolas')
+            else:
+                for landmark in options['LandmarksToAdd']:
+                    row = landmarks_df[landmarks_df['Landmark'].str.upper() == landmark.upper()]
+                    if not row.empty:
+                        x = options['XScale']*((row.iloc[0]['X']-options['GridColumnLeftOffset'])) * grid_col_scale + options['XOffset']
+                        y = options['YScale']*((row.iloc[0]['Y']-options['GridRowTopOffset'])) * grid_row_scale + options['YOffset']
+                        ax.text(x, y, row.iloc[0]['Landmark'], 
+                                fontsize=9, color='white', ha='center', va='center', 
+                                fontweight='bold', fontname='Consolas')
 
 
 def plot_waveform_grid(waveform, rows=8, cols=16, fs=4000, row_spacing=50, vertical_scale_units='μV', colors=["#EF3A47", "#008F91", "#FDB515", "#043673"], filename=None):

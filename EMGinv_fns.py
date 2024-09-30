@@ -140,6 +140,9 @@ def load_src_template(filename=None, con='muscle', flip_dim=None, xscaling=1.5e-
 
     return pos
 
+def z_to_grid(z, z_min, z_scaling):
+    return ((z - z_min) / z_scaling).astype(int)
+
 def pos_to_3Dgrid_converter(pos, source_activity, scaling):
     """ This function converts the positions of the source space to indices of a 3D grid and uses the source_activity as the value at each voxel.
     This is useful for visualising the source space. 
