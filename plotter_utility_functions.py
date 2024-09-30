@@ -154,4 +154,4 @@ def plot_waveform_grid(waveform, rows=8, cols=16, fs=4000, row_spacing=50, verti
 
     if filename is not None:
         fig.savefig(filename)
-        print(f'Figure saved in {filename}')
+    return fig
