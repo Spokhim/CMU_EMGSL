@@ -23,7 +23,7 @@ CMAP = [cm.umap([166 25 46]./255,32); ...
         cm.umap([124 194 66]./255,32); ...
         cm.umap([108 172 228]./255,32);];
 CMAP = double(CMAP)./255;
-REMAP = [1:128, 193:256, 129:192];
+REMAP = grid_256_2_p1_p2_p3_p4(SUBJ);
 TANK = sprintf("%s_%04d_%02d_%02d", SUBJ, YYYY, MM, DD);
 INPUT_FILE = sprintf("%s/%s/MotorUnits Decomposition/Decomposition Input/%s_%d_synchronized.mat",DATA_INPUT_ROOT, TANK, TANK, BLOCK);
 Y_OFFSET = 50; % Set spacing between traces

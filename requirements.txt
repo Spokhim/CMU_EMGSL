@@ -15,3 +15,4 @@ pyxdf
 openpyxl
 mne
 nibabel
+tqdm

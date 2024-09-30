@@ -71,7 +71,7 @@ def plot_annotated_template_slice(ax, z, options):
                             fontweight='bold', fontname='Consolas')
 
 
-def plot_waveform_grid(waveform, rows=8, cols=16, fs=4000, row_spacing=50, vertical_scale_units='μV', colors=["#EF3A47", "#008F91", "#FDB515", "#043673"]):
+def plot_waveform_grid(waveform, rows=8, cols=16, fs=4000, row_spacing=50, vertical_scale_units='μV', colors=["#EF3A47", "#008F91", "#FDB515", "#043673"], filename=None):
     """
     Plot a set of time-series snippets arranged on the same axis but as a grid of signals (8 rows, 16 columns).
     Each group of 4 adjacent columns has the same color, in the order specified by 'colors'.
@@ -117,22 +117,23 @@ def plot_waveform_grid(waveform, rows=8, cols=16, fs=4000, row_spacing=50, verti
     
     # Add scalebar
     total_time_sec = n_samples / fs  # Total time in seconds
-    time_scalebar_width = 0.1 if total_time_sec >= 0.1 else 0.01  # Show 0.1s or 10ms
-    time_scalebar_label = f"{time_scalebar_width:.1f}s" if total_time_sec >= 0.1 else f"{time_scalebar_width * 1000:.1f}ms"
+    time_scalebar_width = h_offset
+    time_scalebar_label = f"{time_scalebar_width:.1f}s" if h_offset >= 0.1 else f"{time_scalebar_width * 1000:.1f}ms"
     
     # Draw the horizontal time scalebar (bottom left)
-    ax.plot([-0.02*total_time_sec, time_scalebar_width-(0.02*total_time_sec)], [-row_spacing, -row_spacing], color='black', lw=2)
-    ax.text(time_scalebar_width / 2 -0.02*total_time_sec, -row_spacing * 1.25, time_scalebar_label, ha='center', va='center', fontsize=10, color='black')
+    ax.plot([-0.5 * time_scalebar_width, 0.5 * time_scalebar_width], [-row_spacing, -row_spacing], color='black', lw=2)
+    ax.text(time_scalebar_width / 2 -0.5 * h_offset, -row_spacing * 1.25, time_scalebar_label, ha='center', va='center', fontsize=10, color='black')
 
     # Vertical scale for 2 * row_spacing
     vertical_scalebar_height = 2 * row_spacing
-    ax.plot([-0.02 * total_time_sec, -0.02 * total_time_sec], [-row_spacing, vertical_scalebar_height - row_spacing], color='black', lw=2)
-    ax.text(-0.15 * total_time_sec, vertical_scalebar_height / 2 - row_spacing, f"{vertical_scalebar_height:.1f} {vertical_scale_units}",
+    ax.plot([-0.5 * h_offset, -0.5 * h_offset], [-row_spacing, vertical_scalebar_height - row_spacing], color='black', lw=2)
+    ax.text(-0.85 * total_time_sec, vertical_scalebar_height / 2 - row_spacing, f"{vertical_scalebar_height:.1f} {vertical_scale_units}",
             ha='center', va='center', rotation=90, fontsize=10, color='black')
 
     # Set the limits to adjust for the scalebar
-    ax.set_xlim([-0.17 * total_time_sec, total_time_sec + (cols - 1) * h_offset])
+    ax.set_xlim([-1.25 * h_offset, total_time_sec + (cols - 1) * h_offset])
     ax.set_ylim([-row_spacing*1.5, rows * row_spacing])
 
-    # Show the plot
-    plt.show()
+    if filename is not None:
+        fig.savefig(filename)
+        print(f'Figure saved in {filename}')
