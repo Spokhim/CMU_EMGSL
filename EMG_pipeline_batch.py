@@ -73,11 +73,14 @@ def run_emg_pipeline_batch(folder=BATCH_FOLDER, export_folder=EXPORT_FOLDER, sum
             file_stem = Path(file_path).stem
             parts = file_stem.split('_')
 
+            SUBJECT = parts[0]
+            DATE = '-'.join(parts[1:4])
+
             # Parse TANK (everything up to the 4th underscore)
             TANK = '_'.join(parts[:4])  # Example: 'MCP01_2024_04_12'
 
             # Parse BLOCK (the value just before 'muaps')
-            BLOCK = int(parts[-5])  # Example: '15'
+            BLOCK = int(parts[-4])  # Example: '15'
 
             # Parse MUAP_ID (the integer right after 'muaps_template-')
             MUAP_ID = int(file_stem.split('muaps_template-')[1].split('_')[0])  # Example: '02'
@@ -160,14 +163,17 @@ def run_emg_pipeline_batch(folder=BATCH_FOLDER, export_folder=EXPORT_FOLDER, sum
                 'YScale': -0.002
             }
             
-            nearest_muscle, nearest_muscle_distance = find_nearest_muscle(source_activity_time, pos, t=t_value, options=options)
+            nearest_muscle, nearest_muscle_distance, nearest_muscle_section = find_nearest_muscle(source_activity_time, pos, t=t_value, options=options)
             summary_data.append({
-                'TANK': TANK,
+                'SUBJECT': SUBJECT, 
+                'DATE': DATE, 
                 'BLOCK': BLOCK,
                 'MUAP_ID': MUAP_ID,
                 'Nearest_Muscle': nearest_muscle,
                 'Distance': nearest_muscle_distance,
-                'Time_Point': t_value
+                'Section': nearest_muscle_section, 
+                'Time_Point': t_value,
+                'Arm': arm
             })
 
             # Create a unique folder based on the current runtime
@@ -241,7 +247,7 @@ def run_emg_pipeline_batch(folder=BATCH_FOLDER, export_folder=EXPORT_FOLDER, sum
 
     # Convert the summary data to a DataFrame and save it as a CSV file
     summary_df = pd.DataFrame(summary_data)
-    summary_filename = f'{summary_folder}/summary_t{t_value}.csv'
+    summary_filename = f'{summary_folder}/summary_t{t_value}_{arm}.csv'
     summary_df.to_csv(summary_filename, index=False)
     print("Batch processing complete.")
 

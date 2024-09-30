@@ -69,7 +69,7 @@ def find_nearest_muscle(source_activity, pos, t, options):
     max_pos = pos[max_index]  # 3D position of the highest intensity source
 
     # Step 2: Determine the nearest transverse slice (z-index)
-    z_index = round(max_pos[2] / options['MillimetersPerSection']) + options['StartingSection']
+    z_index = round(max_pos[2]*1000 / options['MillimetersPerSection']) + options['StartingSection']
 
     # Step 3: Load the landmarks for the nearest slice
     sheet_name = options['LandMarkSheetExpression'] % z_index
@@ -98,4 +98,4 @@ def find_nearest_muscle(source_activity, pos, t, options):
             min_distance = distance
             nearest_muscle = row['Landmark']
 
-    return nearest_muscle, min_distance
+    return nearest_muscle, min_distance, z_index
