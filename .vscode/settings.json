@@ -1,0 +1,9 @@
+{
+    "python.pythonPath": "venv/Scripts/python.exe", 
+    "terminal.integrated.profiles.windows": {
+        "Command Prompt": {
+            "path": ["C:/Windows/System32/cmd.exe"],
+            "args": ["/K", "${workspaceFolder}/.venv/Scripts/activate.bat"]
+        }
+    },
+}

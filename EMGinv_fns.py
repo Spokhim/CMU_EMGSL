@@ -140,6 +140,9 @@ def load_src_template(filename=None, con='muscle', flip_dim=None, xscaling=1.5e-
 
     return pos
 
+def z_to_grid(z, z_min, z_scaling):
+    return ((z - z_min) / z_scaling).astype(int)
+
 def pos_to_3Dgrid_converter(pos, source_activity, scaling):
     """ This function converts the positions of the source space to indices of a 3D grid and uses the source_activity as the value at each voxel.
     This is useful for visualising the source space. 
@@ -253,7 +256,7 @@ def load_tmsi_data(filename=None, return_mne_object=False):
     else:
         return samples, ch_names, sample_rate, num_channels
 
-def load_tmsitomne_combine(f_prox=None, f_dist=None, scale=1e-6):
+def load_tmsitomne_combine(f_prox=None, f_dist=None, scale=1e-6, trigger_bit=0):
     """ Combines the distal and proximal datasets from TMSI together into one MNE object.
     
     Parameters: 
@@ -269,27 +272,40 @@ def load_tmsitomne_combine(f_prox=None, f_dist=None, scale=1e-6):
     if f_dist is None:
         f_dist = 'Data/Pok_2024_08_21_B_DIST_8.poly5' 
 
+    bitmask = 1 << trigger_bit
+
     prox = load_tmsi_data(filename=f_prox)
     dist = load_tmsi_data(filename=f_dist)      
     ch_names = ["Prox - " + s for s in prox[1]] + ["Dist - " + s for s in dist[1]]
     fs = prox[2]
     ch_types = ['eeg']*64 + ['misc']*(len(prox[1])-64) + ['eeg']*64 + ['misc']*(len(dist[1])-64)
     num_channels = len(ch_names)
-    dist_sec = np.where(dist[0][-3,:]==254)[0]
-    prox_sec = np.where(prox[0][-3,:]==254)[0]
+    # Get the sample indices where the bitmask condition is true
+    dist_sec = np.where(dist[0][-3, :].astype(np.uint16) & bitmask)[0]
+    prox_sec = np.where(prox[0][-3, :].astype(np.uint16) & bitmask)[0]
 
-    dist_sample = dist[0][:, dist_sec[0]:dist_sec[-1]]
-    prox_sample = prox[0][:, prox_sec[0]:prox_sec[-1]]
+    # Find the common sample window between the two
+    common_start = max(dist_sec[0], prox_sec[0])  # Start at the later of the two starts
+    common_end = min(dist_sec[-1], prox_sec[-1])  # End at the earlier of the two ends
+
+    # Extract the samples in the common time window
+    dist_sample = dist[0][:, common_start:common_end]
+    prox_sample = prox[0][:, common_start:common_end]
 
     # Scale the data channels
-    dist_sample[:64] = dist_sample[:64]*scale
-    prox_sample[:64] = prox_sample[:64]*scale
+    dist_sample[:64] = dist_sample[:64] * scale
+    prox_sample[:64] = prox_sample[:64] * scale
 
-    del dist, prox
+    # Ensure both have the same length (in case of a minor misalignment)
+    min_samples = min(dist_sample.shape[1], prox_sample.shape[1])
+    dist_sample = dist_sample[:, :min_samples]
+    prox_sample = prox_sample[:, :min_samples]
+
     # Create MNE raw object
     info = mne.create_info(ch_names, fs, ch_types)
-    # The lengths of the two datasets are stil off, so remove some samples, still misaligned slightly
-    MNE_raw = mne.io.RawArray(np.concatenate((prox_sample[:,1:-1], dist_sample), axis=0), info)
+
+    # Concatenate the aligned and scaled data
+    MNE_raw = mne.io.RawArray(np.concatenate((prox_sample, dist_sample), axis=0), info)
 
     return MNE_raw
 
@@ -317,6 +333,40 @@ def tmsi_eventextractor(channel_data):
     events[:,0] = transitions
     events[:,2] = channel_data[transitions+1]
     events = events.astype(int)
+
+    return events
+
+def tmsi_ttl_eventextractor(channel_data, trigger_bit=0):
+    """
+    Purpose of this function is to extract events based on transitions of a specific trigger bit.
+    It will generate an event array in the form (sample index, 0, event value), which is the same form used in MNE-Python.
+    
+    Parameters:
+    - channel_data (array): the data from the TMSI file / MNE object.
+    - trigger_bit (int): the specific bit to monitor for LOW to HIGH and HIGH to LOW transitions. Default is 0 (least significant bit).
+    
+    Returns:
+    - events (array): the event array in the form (sample index, 0, event value).
+    """
+    
+    # Create the bitmask for the specific trigger bit
+    bitmask = 1 << trigger_bit
+
+    # Apply the bitmask and cast to uint16
+    masked_data = (channel_data.astype(np.uint16) & bitmask) >> trigger_bit  # Mask and shift to get 0/1 values for the trigger bit
+
+    # Detect transitions: LOW to HIGH (0 -> 1) and HIGH to LOW (1 -> 0)
+    low_to_high = np.where((masked_data[:-1] == 0) & (masked_data[1:] == 1))[0]
+    high_to_low = np.where((masked_data[:-1] == 1) & (masked_data[1:] == 0))[0]
+
+    # Combine transitions and sort them
+    transitions = np.sort(np.concatenate((low_to_high, high_to_low)))
+
+    # Construct the event array in form (sample index, 0, event value)
+    # LOW to HIGH -> event value 1, HIGH to LOW -> event value 0
+    events = np.zeros((len(transitions), 3), dtype=int)
+    events[:, 0] = transitions  # Sample index of the event
+    events[:, 2] = np.where(np.isin(transitions, low_to_high), 1, 0)  # 1 for LOW->HIGH, 0 for HIGH->LOW
 
     return events
 

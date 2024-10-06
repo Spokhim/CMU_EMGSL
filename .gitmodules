@@ -1,0 +1,9 @@
+[submodule "tmsi_python_interface"]
+	path = tmsi_python_interface
+	url = https://gitlab.com/tmsi/tmsi-python-interface
+[submodule "+io"]
+	path = +io
+	url = git@github.com:Neuro-Mechatronics-Interfaces/matlab_package__io.git
+[submodule "+cm"]
+	path = +cm
+	url = git@github.com:Neuro-Mechatronics-Interfaces/matlab_package__cm.git
