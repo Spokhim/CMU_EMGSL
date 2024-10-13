@@ -699,6 +699,94 @@ def bone_remover(pos, fwd, x0, y0, r):
 
     return pos, fwd
 
+def _apply_inverse_no_reference_check(
+    evoked,
+    inverse_operator,
+    lambda2,
+    method,
+    pick_ori,
+    prepared,
+    label,
+    method_params,
+    return_residual,
+    use_cps,
+):
+    from mne.utils import _validate_type, _check_option, logger
+    from mne.minimum_norm.inverse import _check_ori, _check_ch_names, _check_or_prepare, _pick_channels_inverse_operator, _assemble_kernel, _log_exp_var, _make_stc, _subject_from_inverse, _get_src_type, combine_xyz
+    from mne.evoked import Evoked, EvokedArray
+    from mne._fiff.constants import FIFF
+    INVERSE_METHODS = ("MNE", "dSPM", "sLORETA", "eLORETA")
+
+    _validate_type(evoked, Evoked, "evoked")
+    _check_option("method", method, INVERSE_METHODS)
+    _check_ori(pick_ori, inverse_operator["source_ori"], inverse_operator["src"])
+    #
+    #   Set up the inverse according to the parameters
+    #
+    nave = evoked.nave
+
+    _check_ch_names(inverse_operator, evoked.info)
+
+    inv = _check_or_prepare(
+        inverse_operator, nave, lambda2, method, method_params, prepared, copy="non-src"
+    )
+    del inverse_operator
+
+    #
+    #   Pick the correct channels from the data
+    #
+    sel = _pick_channels_inverse_operator(evoked.ch_names, inv)
+    logger.info(f'Applying inverse operator to "{evoked.comment}"...')
+    logger.info("    Picked %d channels from the data" % len(sel))
+    logger.info("    Computing inverse...")
+    K, noise_norm, vertno, source_nn = _assemble_kernel(
+        inv, label, method, pick_ori, use_cps=use_cps
+    )
+    sol = np.dot(K, evoked.data[sel])  # apply imaging kernel
+    logger.info("    Computing residual...")
+    # x̂(t) = G ĵ(t) = C ** 1/2 U Π w(t)
+    # where the diagonal matrix Π has elements πk = λk γk
+    Pi = inv["sing"] * inv["reginv"]
+    data_w = np.dot(inv["whitener"], np.dot(inv["proj"], evoked.data[sel]))  # C ** -0.5
+    w_t = np.dot(inv["eigen_fields"]["data"], data_w)  # U.T @ data
+    data_est = np.dot(
+        inv["colorer"],  # C ** 0.5
+        np.dot(inv["eigen_fields"]["data"].T, Pi[:, np.newaxis] * w_t),  # U
+    )
+    data_est_w = np.dot(inv["whitener"], np.dot(inv["proj"], data_est))
+    _log_exp_var(data_w, data_est_w)
+    if return_residual:
+        residual = evoked.copy()
+        residual.data[sel] -= data_est
+    is_free_ori = inv["source_ori"] == FIFF.FIFFV_MNE_FREE_ORI and pick_ori != "normal"
+
+    if is_free_ori and pick_ori != "vector":
+        logger.info("    Combining the current components...")
+        sol = combine_xyz(sol)
+
+    if noise_norm is not None:
+        logger.info(f"    {method}...")
+        if is_free_ori and pick_ori == "vector":
+            noise_norm = noise_norm.repeat(3, axis=0)
+        sol *= noise_norm
+
+    tstep = 1.0 / evoked.info["sfreq"]
+    tmin = float(evoked.times[0])
+    subject = _subject_from_inverse(inv)
+    src_type = _get_src_type(inv["src"], vertno)
+    stc = _make_stc(
+        sol,
+        vertno,
+        tmin=tmin,
+        tstep=tstep,
+        subject=subject,
+        vector=(pick_ori == "vector"),
+        source_nn=source_nn,
+        src_type=src_type,
+    )
+
+    return (stc, residual) if return_residual else stc
+
 ###########################################################################################################################################
 
 # Optimisers tried which don't work well:
