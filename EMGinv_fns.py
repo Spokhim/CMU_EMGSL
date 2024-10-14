@@ -672,7 +672,7 @@ def fwd_convertfixed(fwd, orient):
     return fwd_fixed
 
 def bone_remover(pos, fwd, x0, y0, r):
-    """ Remove all source space dipoles within a cylinder of radius r centred at (x0, y0) representing bone.
+    """ Remove all source space dipoles within a cylinder of radius r centred at (x0, y0) representing bone within a matrix.
     
     Parameters:
     - pos (array): Positions of the source space dipoles (n_dipoles x 3).
@@ -688,14 +688,11 @@ def bone_remover(pos, fwd, x0, y0, r):
 
     x = pos[:, 0]
     y = pos[:, 1]
-
+    orientations = fwd.shape[1] // pos.shape[0]
     inside_cylinder = (x - x0)**2 + (y - y0)**2  >= r**2
+
     pos = pos[inside_cylinder]
-    if pos.shape[0] == fwd.shape[1]:
-        fwd = fwd[:,inside_cylinder]
-    else:
-        orientations = fwd.shape[1] // pos.shape[0]
-        fwd = fwd[:,np.repeat(inside_cylinder, orientations)]
+    fwd = fwd[:,np.repeat(inside_cylinder, orientations)]
 
     return pos, fwd
 
