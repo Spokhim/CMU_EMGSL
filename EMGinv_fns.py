@@ -672,7 +672,7 @@ def fwd_convertfixed(fwd, orient):
     return fwd_fixed
 
 def bone_remover(pos, fwd, x0, y0, r):
-    """ Remove all source space dipoles within a cylinder of radius r centred at (x0, y0) representing bone.
+    """ Remove all source space dipoles within a cylinder of radius r centred at (x0, y0) representing bone within a matrix.
     
     Parameters:
     - pos (array): Positions of the source space dipoles (n_dipoles x 3).
@@ -680,24 +680,191 @@ def bone_remover(pos, fwd, x0, y0, r):
     - x0 (float): x-coordinate of the cylinder centre.
     - y0 (float): y-coordinate of the cylinder centre.
     - r (float): Radius of the cylinder.
-
-    Returns:
+s
     - pos (array): Positions of the source space dipoles within the cylinder (n_dipoles x 3).
     - fwd (array): Forward model matrix for the dipoles within the cylinder (n_sensors x n_sources).    
     """
 
     x = pos[:, 0]
     y = pos[:, 1]
+    orientations = fwd.shape[1] // pos.shape[0]
+    inside_cylinder = (x - x0)**2 + (y - y0)**2  >= r**2
+
+    pos = pos[inside_cylinder]
+    fwd = fwd[:,np.repeat(inside_cylinder, orientations)]
+
+    return pos, fwd
+
+def src_bone_remover(mne_src, x0, y0, r, inplace=False):
+    """ Removes source space dipoles from the MNE discrete source space object that lie within a cylinder representing the bone. 
+    
+    Parameters:
+    - mne_src (MNE source space object): the source space object to be modified.
+    - x0 (float): the x-coordinate of the cylinder.
+    - y0 (float): the y-coordinate of the cylinder.
+    - r (float): the radius of the cylinder.
+    - inplace (bool): if True, the source space object is modified in place.  If False, a new source space object is returned.
+
+    Returns:
+    - src (MNE source space object): the modified source space object.
+    - pos (np.array): the new source space positions.
+    """
+
+    if inplace:
+        src = mne_src
+    else:
+        src = mne_src.copy()
+
+    # Get the coordinates of the source space
+    pos = src[0]['rr']
+    x = pos[:, 0]
+    y = pos[:, 1]
 
     inside_cylinder = (x - x0)**2 + (y - y0)**2  >= r**2
     pos = pos[inside_cylinder]
-    if pos.shape[0] == fwd.shape[1]:
-        fwd = fwd[:,inside_cylinder]
-    else:
-        orientations = fwd.shape[1] // pos.shape[0]
-        fwd = fwd[:,np.repeat(inside_cylinder, orientations)]
 
-    return pos, fwd
+    # Adjust the source space.  Need to adjust "inuse", "vertno", 'nuse'
+    # 'inuse' is a boolean array that specifies which vertices are in use
+    src[0]['inuse'] = inside_cylinder*src[0]['inuse']
+    # 'vertno' is an array that specifies the indices of the vertices that are in use
+    src[0]['vertno'] = np.where(src[0]['inuse'])[0]
+    # 'nuse' is the number of points in the subsampled surface.
+    src[0]['nuse'] = np.sum(src[0]['inuse'])
+
+    return src, pos
+
+def fwd_bone_remover(mne_fwd, x0, y0, r, inplace=False):
+    """ Removes source space dipoles and solutions from the MNE forward object that lie within a cylinder representing the bone. 
+    
+    Parameters:
+    - mne_fwd (MNE forward object): the forward object to be modified.
+    - x0 (float): the x-coordinate of the cylinder.
+    - y0 (float): the y-coordinate of the cylinder.
+    - r (float): the radius of the cylinder.
+    - inplace (bool): if True, the source space object is modified in place.  If False, a new source space object is returned.
+
+    Returns:
+    - fwd (MNE forward object): the modified forward object.
+    """
+
+    if inplace:
+        fwd = mne_fwd
+    else:
+        fwd = mne_fwd.copy()
+
+    # Get the coordinates of the source space
+    pos = fwd['source_rr']
+    x = pos[:, 0]
+    y = pos[:, 1]
+    if fwd['source_ori'] == 1: 
+        orientations = 1
+    else:
+        orientations = 3
+    inside_cylinder = (x - x0)**2 + (y - y0)**2  >= r**2
+
+    # Adjust the forward object.  Need to adjust: nsource, sol, _orig_sol, src, source_rr, source_nn
+    # 'source_nn' is the source space normals
+    fwd['source_nn'] = fwd['source_nn'][np.repeat(inside_cylinder, orientations)]
+    # 'sol' is a dictionary contining the forward matrix and channel names, _orig_sol is the original forward solution with three orientations
+    fwd['_orig_sol'] = fwd['_orig_sol'][:,np.repeat(inside_cylinder, 3)]  # Perhaps it's better to treat this as immutable/private...  But convert forward uses this matrix.
+    fwd['sol']['data'] = fwd['sol']['data'][:,np.repeat(inside_cylinder, orientations)]
+    fwd['sol']['ncol'] = fwd['sol']['data'].shape[1]
+    # 'nsource' is the number of source space locations
+    fwd['nsource'] = np.sum(inside_cylinder)
+    # 'src' is the source space object
+    fwd['src'], _ = src_bone_remover(fwd['src'], x0, y0, r, inplace=False)
+    # 'source_rr' is the source space positions
+    fwd['source_rr'] = pos[inside_cylinder]
+
+    return fwd    
+
+def _apply_inverse_no_reference_check(
+    evoked,
+    inverse_operator,
+    lambda2,
+    method,
+    pick_ori,
+    prepared,
+    label,
+    method_params,
+    return_residual,
+    use_cps,
+):
+    from mne.utils import _validate_type, _check_option, logger
+    from mne.minimum_norm.inverse import _check_ori, _check_ch_names, _check_or_prepare, _pick_channels_inverse_operator, _assemble_kernel, _log_exp_var, _make_stc, _subject_from_inverse, _get_src_type, combine_xyz
+    from mne.evoked import Evoked, EvokedArray
+    from mne._fiff.constants import FIFF
+    INVERSE_METHODS = ("MNE", "dSPM", "sLORETA", "eLORETA")
+
+    _validate_type(evoked, Evoked, "evoked")
+    _check_option("method", method, INVERSE_METHODS)
+    _check_ori(pick_ori, inverse_operator["source_ori"], inverse_operator["src"])
+    #
+    #   Set up the inverse according to the parameters
+    #
+    nave = evoked.nave
+
+    _check_ch_names(inverse_operator, evoked.info)
+
+    inv = _check_or_prepare(
+        inverse_operator, nave, lambda2, method, method_params, prepared, copy="non-src"
+    )
+    del inverse_operator
+
+    #
+    #   Pick the correct channels from the data
+    #
+    sel = _pick_channels_inverse_operator(evoked.ch_names, inv)
+    logger.info(f'Applying inverse operator to "{evoked.comment}"...')
+    logger.info("    Picked %d channels from the data" % len(sel))
+    logger.info("    Computing inverse...")
+    K, noise_norm, vertno, source_nn = _assemble_kernel(
+        inv, label, method, pick_ori, use_cps=use_cps
+    )
+    sol = np.dot(K, evoked.data[sel])  # apply imaging kernel
+    logger.info("    Computing residual...")
+    # x̂(t) = G ĵ(t) = C ** 1/2 U Π w(t)
+    # where the diagonal matrix Π has elements πk = λk γk
+    Pi = inv["sing"] * inv["reginv"]
+    data_w = np.dot(inv["whitener"], np.dot(inv["proj"], evoked.data[sel]))  # C ** -0.5
+    w_t = np.dot(inv["eigen_fields"]["data"], data_w)  # U.T @ data
+    data_est = np.dot(
+        inv["colorer"],  # C ** 0.5
+        np.dot(inv["eigen_fields"]["data"].T, Pi[:, np.newaxis] * w_t),  # U
+    )
+    data_est_w = np.dot(inv["whitener"], np.dot(inv["proj"], data_est))
+    _log_exp_var(data_w, data_est_w)
+    if return_residual:
+        residual = evoked.copy()
+        residual.data[sel] -= data_est
+    is_free_ori = inv["source_ori"] == FIFF.FIFFV_MNE_FREE_ORI and pick_ori != "normal"
+
+    if is_free_ori and pick_ori != "vector":
+        logger.info("    Combining the current components...")
+        sol = combine_xyz(sol)
+
+    if noise_norm is not None:
+        logger.info(f"    {method}...")
+        if is_free_ori and pick_ori == "vector":
+            noise_norm = noise_norm.repeat(3, axis=0)
+        sol *= noise_norm
+
+    tstep = 1.0 / evoked.info["sfreq"]
+    tmin = float(evoked.times[0])
+    subject = _subject_from_inverse(inv)
+    src_type = _get_src_type(inv["src"], vertno)
+    stc = _make_stc(
+        sol,
+        vertno,
+        tmin=tmin,
+        tstep=tstep,
+        subject=subject,
+        vector=(pick_ori == "vector"),
+        source_nn=source_nn,
+        src_type=src_type,
+    )
+
+    return (stc, residual) if return_residual else stc
 
 ###########################################################################################################################################
 
