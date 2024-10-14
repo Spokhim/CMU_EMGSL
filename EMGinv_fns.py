@@ -727,7 +727,7 @@ def src_bone_remover(mne_src, x0, y0, r, inplace=False):
     # 'inuse' is a boolean array that specifies which vertices are in use
     src[0]['inuse'] = inside_cylinder*src[0]['inuse']
     # 'vertno' is an array that specifies the indices of the vertices that are in use
-    src[0]['vertno'] = np.where(inside_cylinder)[0]
+    src[0]['vertno'] = np.where(src[0]['inuse'])[0]
     # 'nuse' is the number of points in the subsampled surface.
     src[0]['nuse'] = np.sum(src[0]['inuse'])
 
@@ -765,9 +765,10 @@ def fwd_bone_remover(mne_fwd, x0, y0, r, inplace=False):
     # Adjust the forward object.  Need to adjust: nsource, sol, _orig_sol, src, source_rr, source_nn
     # 'source_nn' is the source space normals
     fwd['source_nn'] = fwd['source_nn'][np.repeat(inside_cylinder, orientations)]
-    # 'sol' is a dictionary contining the forward matrix and channel names, _orig_sol is just the forward matrix  
-    fwd['_orig_sol'] = fwd['_orig_sol'][:,np.repeat(inside_cylinder, orientations)]  # Perhaps it's better to treat this as immutable/private...  But convert forward uses this matrix.
-    fwd['sol']['data'] = fwd['_orig_sol']
+    # 'sol' is a dictionary contining the forward matrix and channel names, _orig_sol is the original forward solution with three orientations
+    fwd['_orig_sol'] = fwd['_orig_sol'][:,np.repeat(inside_cylinder, 3)]  # Perhaps it's better to treat this as immutable/private...  But convert forward uses this matrix.
+    fwd['sol']['data'] = fwd['sol']['data'][:,np.repeat(inside_cylinder, orientations)]
+    fwd['sol']['ncol'] = fwd['sol']['data'].shape[1]
     # 'nsource' is the number of source space locations
     fwd['nsource'] = np.sum(inside_cylinder)
     # 'src' is the source space object
