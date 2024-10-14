@@ -680,8 +680,7 @@ def bone_remover(pos, fwd, x0, y0, r):
     - x0 (float): x-coordinate of the cylinder centre.
     - y0 (float): y-coordinate of the cylinder centre.
     - r (float): Radius of the cylinder.
-
-    Returns:
+s
     - pos (array): Positions of the source space dipoles within the cylinder (n_dipoles x 3).
     - fwd (array): Forward model matrix for the dipoles within the cylinder (n_sensors x n_sources).    
     """
@@ -695,6 +694,88 @@ def bone_remover(pos, fwd, x0, y0, r):
     fwd = fwd[:,np.repeat(inside_cylinder, orientations)]
 
     return pos, fwd
+
+def src_bone_remover(mne_src, x0, y0, r, inplace=False):
+    """ Removes source space dipoles from the MNE discrete source space object that lie within a cylinder representing the bone. 
+    
+    Parameters:
+    - mne_src (MNE source space object): the source space object to be modified.
+    - x0 (float): the x-coordinate of the cylinder.
+    - y0 (float): the y-coordinate of the cylinder.
+    - r (float): the radius of the cylinder.
+    - inplace (bool): if True, the source space object is modified in place.  If False, a new source space object is returned.
+
+    Returns:
+    - src (MNE source space object): the modified source space object.
+    - pos (np.array): the new source space positions.
+    """
+
+    if inplace:
+        src = mne_src
+    else:
+        src = mne_src.copy()
+
+    # Get the coordinates of the source space
+    pos = src[0]['rr']
+    x = pos[:, 0]
+    y = pos[:, 1]
+
+    inside_cylinder = (x - x0)**2 + (y - y0)**2  >= r**2
+    pos = pos[inside_cylinder]
+
+    # Adjust the source space.  Need to adjust "inuse", "vertno", 'nuse'
+    # 'inuse' is a boolean array that specifies which vertices are in use
+    src[0]['inuse'] = inside_cylinder*src[0]['inuse']
+    # 'vertno' is an array that specifies the indices of the vertices that are in use
+    src[0]['vertno'] = np.where(inside_cylinder)[0]
+    # 'nuse' is the number of points in the subsampled surface.
+    src[0]['nuse'] = np.sum(src[0]['inuse'])
+
+    return src, pos
+
+def fwd_bone_remover(mne_fwd, x0, y0, r, inplace=False):
+    """ Removes source space dipoles and solutions from the MNE forward object that lie within a cylinder representing the bone. 
+    
+    Parameters:
+    - mne_fwd (MNE forward object): the forward object to be modified.
+    - x0 (float): the x-coordinate of the cylinder.
+    - y0 (float): the y-coordinate of the cylinder.
+    - r (float): the radius of the cylinder.
+    - inplace (bool): if True, the source space object is modified in place.  If False, a new source space object is returned.
+
+    Returns:
+    - fwd (MNE forward object): the modified forward object.
+    """
+
+    if inplace:
+        fwd = mne_fwd
+    else:
+        fwd = mne_fwd.copy()
+
+    # Get the coordinates of the source space
+    pos = fwd['source_rr']
+    x = pos[:, 0]
+    y = pos[:, 1]
+    if fwd['source_ori'] == 1: 
+        orientations = 1
+    else:
+        orientations = 3
+    inside_cylinder = (x - x0)**2 + (y - y0)**2  >= r**2
+
+    # Adjust the forward object.  Need to adjust: nsource, sol, _orig_sol, src, source_rr, source_nn
+    # 'source_nn' is the source space normals
+    fwd['source_nn'] = fwd['source_nn'][np.repeat(inside_cylinder, orientations)]
+    # 'sol' is a dictionary contining the forward matrix and channel names, _orig_sol is just the forward matrix  
+    fwd['_orig_sol'] = fwd['_orig_sol'][:,np.repeat(inside_cylinder, orientations)]  # Perhaps it's better to treat this as immutable/private...  But convert forward uses this matrix.
+    fwd['sol']['data'] = fwd['_orig_sol']
+    # 'nsource' is the number of source space locations
+    fwd['nsource'] = np.sum(inside_cylinder)
+    # 'src' is the source space object
+    fwd['src'], _ = src_bone_remover(fwd['src'], x0, y0, r, inplace=False)
+    # 'source_rr' is the source space positions
+    fwd['source_rr'] = pos[inside_cylinder]
+
+    return fwd    
 
 def _apply_inverse_no_reference_check(
     evoked,
